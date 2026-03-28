@@ -124,11 +124,11 @@ public class PlayerListener implements Listener {
                     if (timedOutMod != null) {
                         pendingQueue.remove(uuid);
                         pendingTimeouts.remove(uuid);
-                        debug("Timeout for " + player.getName() + " [" + timedOutMod + "]: MOD DETECTED (no UPDATE_SIGN in 100 ticks)");
-                        fail(player, timedOutMod);
+                        debug("Timeout for " + player.getName() + " [" + timedOutMod + "]: MOD DETECTED (no UPDATE_SIGN in 60 ticks)");
+                        player.kick(Parser.color(AppleModDetector.getInstance().getConfig().getString("timeout-kick")));
                     }
                 },
-                100L
+                60L
         );
 
         BukkitTask oldTask = pendingTimeouts.put(player.getUniqueId(), timeoutTask);
