@@ -1,0 +1,6 @@
+name: AppleModDetector
+version: '1.0-SNAPSHOT'
+main: org.dimasik.appleModDetector.AppleModDetector
+api-version: '1.21'
+depend:
+  - packetevents

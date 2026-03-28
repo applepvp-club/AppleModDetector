@@ -1,0 +1,33 @@
+# The plugin detects that a player is using a mod using translation
+#  keys via minecraft exploit using packetevents.
+#
+# It works at the packet level as follows:
+# - Upon connection, a block update packet is sent to the sign.
+# - A sign update packet is sent to the mod's translation key.
+# - A sign opening packet is sent.
+# - A sign closing packet is sent.
+#
+# If the player responds with a packet that doesn't have the
+#  default value in place of the translation text,
+#  it means the player is using that mod.
+
+# Color codes supported:
+# - MiniMessage (<n> | <#rrggbb>)
+# - Modern Ampersand (&n | &#rrggbb)
+# - Legacy Ampersand (&n | &x&r&r&g&g&b&b)
+
+# DonutSMP doesn't ban the user on rejoin, and
+#  I don't think there's any point in adding a ban.
+kick-message:
+  - "&cYou are using a cheat mod that is not allowed on [Your Server] (%mod%!), if you join"
+  - "with this again you will be banned!"
+
+default: "fallb"
+disallowed-mods:
+  "Meteor": "key.meteor-client.open-gui"
+  "Item Scroller": "itemscroller.gui.button.config_gui.generic"
+  "Freecam": "key.freecam.toggle"
+  "Accurate Block Placement": "text.autoconfig.accurateblockplacement.title"
+
+# Logging packets & results
+debug: false
