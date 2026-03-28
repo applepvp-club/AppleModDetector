@@ -15,12 +15,15 @@
 # - MiniMessage (<n> | <#rrggbb>)
 # - Modern Ampersand (&n | &#rrggbb)
 # - Legacy Ampersand (&n | &x&r&r&g&g&b&b)
-
-# DonutSMP doesn't ban the user on rejoin, and
-#  I don't think there's any point in adding a ban.
-kick-message:
-  - "&cYou are using a cheat mod that is not allowed on [Your Server] (%mod%!), if you join"
-  - "with this again you will be banned!"
+action:
+  # Available types:
+  # - Message - sends message to player in chat
+  # - Command - sends a command from the console
+  # - Kick - kicks a player with a reason
+  type: message
+  content:
+    - "&cYou are using a cheat mod that is not allowed on [Your Server] (%mod%!),"
+    - "&cIf you join the game with this you will be banned!"
 
 default: "fallb"
 disallowed-mods:

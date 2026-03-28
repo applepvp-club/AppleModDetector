@@ -6,7 +6,6 @@ import com.github.retrooper.packetevents.event.PacketListenerAbstract;
 import com.github.retrooper.packetevents.event.PacketReceiveEvent;
 import com.github.retrooper.packetevents.protocol.nbt.*;
 import com.github.retrooper.packetevents.protocol.packettype.PacketType;
-import com.github.retrooper.packetevents.protocol.world.TileEntityType;
 import com.github.retrooper.packetevents.protocol.world.blockentity.BlockEntityTypes;
 import com.github.retrooper.packetevents.protocol.world.states.WrappedBlockState;
 import com.github.retrooper.packetevents.util.Vector3i;
@@ -16,11 +15,13 @@ import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerBl
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerCloseWindow;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerOpenSignEditor;
 import net.kyori.adventure.text.Component;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.scheduler.BukkitTask;
 import org.dimasik.appleModDetector.AppleModDetector;
 import org.dimasik.appleModDetector.utility.Parser;
 
@@ -34,6 +35,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class PlayerListener implements Listener {
     private final Map<UUID, String> pendingMod = new ConcurrentHashMap<>();
     private final Map<UUID, List<Map.Entry<String, String>>> pendingQueue = new ConcurrentHashMap<>();
+    private final Map<UUID, BukkitTask> pendingTimeouts = new ConcurrentHashMap<>();
 
     public PlayerListener() {
         registerPacketListener();
@@ -59,11 +61,11 @@ public class PlayerListener implements Listener {
 
         if (mods.isEmpty()) return;
 
-        AppleModDetector.getInstance().getServer().getScheduler().runTaskLater(AppleModDetector.getInstance(), () -> {
+        Bukkit.getScheduler().runTaskLater(AppleModDetector.getInstance(), () -> {
             Map.Entry<String, String> first = mods.removeFirst();
             pendingQueue.put(player.getUniqueId(), mods);
             sendModCheck(player, first.getKey(), first.getValue());
-        }, 20L);
+        }, 20);
     }
 
     private void sendModCheck(Player player, String modName, String translationKey) {
@@ -101,7 +103,6 @@ public class PlayerListener implements Listener {
 
         //noinspection deprecation
         WrapperPlayServerBlockEntityData blockEntityData = new WrapperPlayServerBlockEntityData(peLocation, BlockEntityTypes.SIGN, nbtCompound);
-
         PacketEvents.getAPI().getPlayerManager().sendPacket(player, blockEntityData);
         debug("Sent BlockEntityData to " + player.getName() + " with translation key \"" + translationKey + "\" and fallback \"" + defaultValue + "\"");
 
@@ -114,6 +115,24 @@ public class PlayerListener implements Listener {
         debug("Sent CloseWindow to " + player.getName());
 
         pendingMod.put(player.getUniqueId(), modName);
+
+        BukkitTask timeoutTask = Bukkit.getScheduler().runTaskLater(
+                AppleModDetector.getInstance(),
+                () -> {
+                    UUID uuid = player.getUniqueId();
+                    String timedOutMod = pendingMod.remove(uuid);
+                    if (timedOutMod != null) {
+                        pendingQueue.remove(uuid);
+                        pendingTimeouts.remove(uuid);
+                        debug("Timeout for " + player.getName() + " [" + timedOutMod + "]: MOD DETECTED (no UPDATE_SIGN in 100 ticks)");
+                        fail(player, timedOutMod);
+                    }
+                },
+                100L
+        );
+
+        BukkitTask oldTask = pendingTimeouts.put(player.getUniqueId(), timeoutTask);
+        if (oldTask != null) oldTask.cancel();
     }
 
     private void registerPacketListener() {
@@ -125,6 +144,9 @@ public class PlayerListener implements Listener {
                 if (player == null) return;
                 UUID uuid = player.getUniqueId();
                 if (!pendingMod.containsKey(uuid)) return;
+
+                BukkitTask task = pendingTimeouts.remove(uuid);
+                if (task != null) task.cancel();
 
                 WrapperPlayClientUpdateSign wrapper = new WrapperPlayClientUpdateSign(event);
                 String[] lines = wrapper.getTextLines();
@@ -145,16 +167,7 @@ public class PlayerListener implements Listener {
 
                 if (translated) {
                     pendingQueue.remove(uuid);
-                    AppleModDetector.getInstance().getServer().getScheduler().runTask(AppleModDetector.getInstance(), () -> {
-                        List<String> rawLines = AppleModDetector.getInstance().getConfig().getStringList("kick-message");
-                        Component kickMessage = rawLines.stream()
-                                .map(l -> l.replace("%mod%", modName))
-                                .map(Parser::color)
-                                .reduce(Component.empty(),
-                                        (a, b) -> a.equals(Component.empty()) ? b : a.append(Component.newline()).append(b));
-                        debug("Kicking " + player.getName() + " for using " + modName);
-                        player.kick(kickMessage);
-                    });
+                    fail(player, modName);
                 } else {
                     List<Map.Entry<String, String>> queue = pendingQueue.get(uuid);
                     if (queue != null && !queue.isEmpty()) {
@@ -175,6 +188,31 @@ public class PlayerListener implements Listener {
                     }
                 }
             }
+        });
+    }
+
+    private void fail(Player player, String modName) {
+        AppleModDetector.getInstance().getServer().getScheduler().runTask(AppleModDetector.getInstance(), () -> {
+            List<String> rawLines = AppleModDetector.getInstance().getConfig().getStringList("action.content");
+            List<String> stringContent = rawLines.stream()
+                    .map(l -> l.replace("%mod%", modName).replace("%player%", player.getName()))
+                    .toList();
+            switch (AppleModDetector.getInstance().getConfig().getString("action.type", "message").toLowerCase()) {
+                case "message" -> {
+                    Component message = stringContent.stream()
+                            .map(Parser::color)
+                            .reduce(Component.empty(), (a, b) -> a.equals(Component.empty()) ? b : a.append(Component.newline()).append(b));
+                    player.sendMessage(message);
+                }
+                case "kick" -> {
+                    Component message = stringContent.stream()
+                            .map(Parser::color)
+                            .reduce(Component.empty(), (a, b) -> a.equals(Component.empty()) ? b : a.append(Component.newline()).append(b));
+                    player.kick(message);
+                }
+                case "command" -> stringContent.forEach(s -> Bukkit.dispatchCommand(Bukkit.getConsoleSender(), s));
+            }
+            debug("Failing " + player.getName() + " for using " + modName);
         });
     }
 }
