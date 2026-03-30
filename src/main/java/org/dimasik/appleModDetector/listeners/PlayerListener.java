@@ -125,7 +125,9 @@ public class PlayerListener implements Listener {
                         pendingQueue.remove(uuid);
                         pendingTimeouts.remove(uuid);
                         debug("Timeout for " + player.getName() + " [" + timedOutMod + "]: MOD DETECTED (no UPDATE_SIGN in 60 ticks)");
-                        player.kick(Parser.color(AppleModDetector.getInstance().getConfig().getString("timeout-kick")));
+                        String reason = AppleModDetector.getInstance().getConfig().getString("timeout-kick");
+                        if(!reason.isEmpty())
+                            player.kick(Parser.color(reason));
                     }
                 },
                 60L

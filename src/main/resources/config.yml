@@ -26,7 +26,8 @@ action:
     - "&cIf you join the game with this you will be banned!"
 
 default: "fallb"
-timeout-kick: "&fTimed out"
+# Leave empty to disable
+timeout-kick: "Timed out"
 disallowed-mods:
   "Meteor": "key.meteor-client.open-gui"
   "Item Scroller": "itemscroller.gui.button.config_gui.generic"
