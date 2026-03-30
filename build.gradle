@@ -30,7 +30,7 @@ dependencies {
 
 shadowJar {
     archiveClassifier.set('')
-    archiveFileName.set("applemoddedector.jar")
+    archiveFileName.set("applemoddetector.jar")
 }
 
 def targetJavaVersion = 21
