@@ -50,6 +50,11 @@ public class PlayerListener implements Listener {
     @EventHandler
     public void on(ApplePlayerJoinEvent event) {
         Player player = event.getPlayer();
+        if (player.getName().startsWith(".")) return;
+        if (player.getUniqueId().toString().startsWith("00000000-0000-0000")) return;
+        try {
+            if (org.geysermc.floodgate.api.FloodgateApi.getInstance().isFloodgatePlayer(player.getUniqueId())) return;
+        } catch (Throwable ignored) {}
         ConfigurationSection configurationSection = AppleModDetector.getInstance().getConfig().getConfigurationSection("disallowed-mods");
         if (configurationSection == null) return;
         List<Map.Entry<String, String>> mods = new ArrayList<>(configurationSection
