@@ -17,6 +17,9 @@ repositories {
         name = "codemc-repo"
         url = "https://repo.codemc.io/repository/maven-releases/"
     }
+    maven {
+        url = "https://repo.opencollab.dev/main/"
+    }
 }
 
 dependencies {
@@ -26,6 +29,7 @@ dependencies {
     annotationProcessor 'org.projectlombok:lombok:1.18.32'
 
     compileOnly 'com.github.retrooper:packetevents-spigot:2.7.0'
+    compileOnly 'org.geysermc.floodgate:api:2.2.3-SNAPSHOT'
 }
 
 shadowJar {
